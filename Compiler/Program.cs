@@ -71,14 +71,14 @@ namespace Compiler
                     {
                         if (words.Length > 2)
                         {
-                            variableValues.Add(variableNames.Count + 1, words[2]);
+                            variableValues.Add(variableNames.Count, words[2]);
                         }
                         else
                         {
-                            variableValues.Add(variableNames.Count + 1, "0");
+                            variableValues.Add(variableNames.Count, "0");
                         }
 
-                        variableNames.Add(variableNames.Count + 1, words[1]);
+                        variableNames.Add(variableNames.Count, words[1]);
                     }
                     else
                     {
@@ -88,7 +88,7 @@ namespace Compiler
                 }
             }
 
-            for (int i = 1; i <= variableNames.Count; i++)
+            for (int i = 0; i < variableNames.Count; i++)
             {
                 preCompiledCode.Add("this.memory.writeInt32LE(" + variableValues[i] + ", " + memoryByte + "); //" + variableNames[i]);
                 memoryByte += 4;
@@ -102,9 +102,9 @@ namespace Compiler
             int kostyl = 0;
             foreach (string line in preCompiledCode)
             {
-                for (int i = 1; i <= variableNames.Count; i++)
+                for (int i = 0; i < variableNames.Count; i++)
                 {
-                    fullCompiledCode[kostyl] = fullCompiledCode[kostyl].Replace(("!" + i.ToString()), (endOfCodeByte + (i-1) * 4).ToString());
+                    fullCompiledCode[kostyl] = fullCompiledCode[kostyl].Replace(("!" + i.ToString()), (endOfCodeByte + i * 4).ToString());
                 }
                 kostyl++;
             }
