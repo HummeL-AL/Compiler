@@ -35,6 +35,7 @@ namespace Compiler
             List<string> preCompiledCode = new List<string>();
             List<string> fullCompiledCode = new List<string>();
             Dictionary<int, string> variableNames = new Dictionary<int, string>();
+            Dictionary<int, string> variableValues = new Dictionary<int, string>();
             int memoryByte = 0;
             int endOfCodeByte = 0;
 
@@ -49,7 +50,7 @@ namespace Compiler
 
                 if (commands.ContainsKey(words[0]))
                 {
-                    preCompiledCode.Add("this.memory[" + memoryByte + "] = " + commands.GetValueOrDefault(words[0]) + ";");
+                    preCompiledCode.Add("this.memory[" + memoryByte + "] = " + commands[words[0]] + ";");
                     memoryByte++;
 
                     if (words[0] != "End")
@@ -66,8 +67,17 @@ namespace Compiler
                 }
                 else
                 {
-                    if (words[0] == "#BIND")
+                    if (words[0] == "@BIND")
                     {
+                        if (words.Length > 2)
+                        {
+                            variableValues.Add(variableNames.Count + 1, words[2]);
+                        }
+                        else
+                        {
+                            variableValues.Add(variableNames.Count + 1, "0");
+                        }
+
                         variableNames.Add(variableNames.Count + 1, words[1]);
                     }
                     else
@@ -80,7 +90,7 @@ namespace Compiler
 
             for (int i = 1; i <= variableNames.Count; i++)
             {
-                preCompiledCode.Add("this.memory.writeInt32LE(" + 0 + ", " + memoryByte + "); //" + variableNames.GetValueOrDefault(i));
+                preCompiledCode.Add("this.memory.writeInt32LE(" + variableValues[i] + ", " + memoryByte + "); //" + variableNames[i]);
                 memoryByte += 4;
             }
 
