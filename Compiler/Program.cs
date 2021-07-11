@@ -1,4 +1,6 @@
 ﻿using System;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Collections.Generic;
 
 namespace Compiler
@@ -109,10 +111,18 @@ namespace Compiler
                 kostyl++;
             }
 
-            foreach(string line in fullCompiledCode)
-            {
-                Console.WriteLine(line);
-            }
+            SaveToFile(fullCompiledCode);
+        }
+
+        public static void SaveToFile(List<string> codeToSave)
+        {
+            BinaryFormatter formatter = new BinaryFormatter();
+            string path = Directory.GetCurrentDirectory() + "/BinaryCode.uce";
+
+            FileStream stream = new FileStream(path, FileMode.Create);
+
+            formatter.Serialize(stream, codeToSave);
+            stream.Close();
         }
 
         public static void SetCommands()
