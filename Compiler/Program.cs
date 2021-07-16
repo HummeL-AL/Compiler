@@ -58,7 +58,7 @@ namespace Compiler
         static void Compile()
         {
             int position = 0;
-            buffer = new int[endOfCode + variablesValues.Count * 4];
+            buffer = new int[endOfCode + variablesValues.Count * 4 + 1];
 
             foreach (string line in toCompile)
             {
@@ -94,6 +94,7 @@ namespace Compiler
             for (int i = 0; i < variablesValues.Count; i++)
             {
                 buffer[position] = (variablesValues[i]);
+                position += 4;
             }
 
             foreach (int number in buffer)
