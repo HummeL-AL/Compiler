@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Text;
+using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Collections.Generic;
 
@@ -9,120 +11,112 @@ namespace Compiler
     {
         public static Dictionary<string, int> commands = new Dictionary<string, int>();
 
+        public static int numOfVariables = 0;
+        public static Dictionary<int, int> variablesValues = new Dictionary<int, int>();
+
+        public static int endOfCode;
+        public static int[] buffer;
+        public static List<string> toCompile = new List<string>();
+        public static string compiled = "";
+
         static void Main(string[] args)
         {
-            List<string> inputCode = new List<string>();
-
+            string inputString = "";
             SetCommands();
 
-            for (; ; )
-            {
-                string inputString = Console.ReadLine();
-                if (!inputString.Contains("End"))
+            do {
+                inputString = Console.ReadLine();
+                string[] words = inputString.Split(" ");
+
+                if(words[0] == "@BIND")
                 {
-                    inputCode.Add(inputString);
-                }
-                else
-                {
-                    inputCode.Add(inputString);
-                    Console.WriteLine("Code accepted");
-                    CompileCode(inputCode);
-                    Console.WriteLine("Input ended");
-                }
-            }
-        }
-
-        public static void CompileCode(List<string> codeToCompile)
-        {
-            List<string> preCompiledCode = new List<string>();
-            List<string> fullCompiledCode = new List<string>();
-            Dictionary<int, string> variableNames = new Dictionary<int, string>();
-            Dictionary<int, string> variableValues = new Dictionary<int, string>();
-            int memoryByte = 0;
-            int endOfCodeByte = 0;
-
-            preCompiledCode.Add("this.memory = Buffer.alloc(RAM_SIZE);");
-            preCompiledCode.Add("this.finished = false;");
-            preCompiledCode.Add("this.IPPointer = 0;");
-            preCompiledCode.Add("this.CommandTable = loadCommandTable();");
-
-            foreach (string line in codeToCompile)
-            {
-                string[] words = line.Split(' ');
-
-                if (commands.ContainsKey(words[0]))
-                {
-                    preCompiledCode.Add("this.memory[" + memoryByte + "] = " + commands[words[0]] + ";");
-                    memoryByte++;
-
-                    if (words[0] != "End")
+                    if(words.Length > 1)
                     {
-                        preCompiledCode.Add("this.memory.writeInt32LE(" + words[1] + ", " + memoryByte + ");");
-                        memoryByte += 4;
-                        preCompiledCode.Add("this.memory.writeInt32LE(" + words[2] + ", " + memoryByte + ");");
-                        memoryByte += 4;
+                        variablesValues.Add(numOfVariables, Convert.ToInt32(words[1]));
                     }
                     else
                     {
-                        endOfCodeByte = memoryByte;
+                        variablesValues.Add(numOfVariables, 0);
                     }
+                    numOfVariables++;
                 }
                 else
                 {
-                    if (words[0] == "@BIND")
+                    string toAdd = commands[words[0]].ToString();
+                    if(words[0] != "End")
                     {
-                        if (words.Length > 2)
-                        {
-                            variableValues.Add(variableNames.Count, words[2]);
-                        }
-                        else
-                        {
-                            variableValues.Add(variableNames.Count, "0");
-                        }
+                        toAdd += " " + words[1].ToString() + " " + words[2].ToString();
+                    }
+                    toCompile.Add(toAdd);
+                }
+            }
+            while (!inputString.Contains("End"));
+            endOfCode = (toCompile.Count - 1) * 9;
+            Compile();
+        }
 
-                        variableNames.Add(variableNames.Count, words[1]);
+        static void Compile()
+        {
+            int position = 0;
+            buffer = new int[endOfCode + variablesValues.Count * 4];
+
+            foreach (string line in toCompile)
+            {
+                string[] numbers = line.Split(" ");
+
+                buffer[position] = Convert.ToInt32(numbers[0]);
+                position++;
+                if (numbers.Length > 1)
+                {
+                    if (numbers[1][0] == '!')
+                    {
+                        buffer[position] = (endOfCode + 1 + Convert.ToInt32(numbers[1].Replace("!", "")) * 4);
+                        position += 4;
                     }
                     else
                     {
-                        Console.WriteLine("Ти явно написав якусь Х**НЮ");
-                        break;
+                        buffer[position] = (Convert.ToInt32(numbers[1]));
+                        position += 4;
+                    }
+
+                    if (numbers[2][0] == '!')
+                    {
+                        buffer[position] = (endOfCode + 1 + Convert.ToInt32(numbers[2].Replace("!", "")) * 4);
+                        position += 4;
+                    }
+                    else
+                    {
+                        buffer[position] = (Convert.ToInt32(numbers[2]));
+                        position += 4;
                     }
                 }
             }
-
-            for (int i = 0; i < variableNames.Count; i++)
+            for (int i = 0; i < variablesValues.Count; i++)
             {
-                preCompiledCode.Add("this.memory.writeInt32LE(" + variableValues[i] + ", " + memoryByte + "); //" + variableNames[i]);
-                memoryByte += 4;
+                buffer[position] = (variablesValues[i]);
             }
 
-            foreach (string line in preCompiledCode)
+            foreach (int number in buffer)
             {
-                fullCompiledCode.Add(line);
-            }
+                Console.Write("Dec: " + number + " ");
+                string hexNumber = number.ToString("X2");
+                Console.WriteLine("Hex: " + hexNumber + " ");
 
-            int kostyl = 0;
-            foreach (string line in preCompiledCode)
+                compiled += hexNumber;
+            }
+            Console.Write("Full: " + compiled);
+
+            string path = Directory.GetCurrentDirectory() + "/main.uce";
+            using (FileStream stream = File.Create(path))
             {
-                for (int i = 0; i < variableNames.Count; i++)
-                {
-                    fullCompiledCode[kostyl] = fullCompiledCode[kostyl].Replace(("!" + i.ToString()), (endOfCodeByte + i * 4).ToString());
-                }
-                kostyl++;
+                //byte[] info = new UTF8Encoding(true).GetBytes(compiled);
+                byte[] info = Enumerable.Range(0, compiled.Length).Where(x => x % 2 == 0).Select(x => Convert.ToByte(compiled.Substring(x, 2), 16)).ToArray();
+                stream.Write(info, 0, info.Length);
             }
-
-            SaveToFile(fullCompiledCode);
-        }
-
-        public static void SaveToFile(List<string> codeToSave)
-        {
-            BinaryFormatter formatter = new BinaryFormatter();
-            string path = Directory.GetCurrentDirectory() + "/BinaryCode.uce";
-
-            FileStream stream = new FileStream(path, FileMode.Create);
-
-            formatter.Serialize(stream, codeToSave);
-            stream.Close();
+            if (!File.Exists(path))
+            {
+                Console.WriteLine("File wasn't saved.");
+            }
         }
 
         public static void SetCommands()
@@ -136,6 +130,9 @@ namespace Compiler
             commands.Add("End", 7);
             commands.Add("Cpm", 8);
             commands.Add("Set", 9);
+            commands.Add("Adr", 10);
+            commands.Add("Get", 11);
+            commands.Add("Sys", 12);
         }
     }
 }
